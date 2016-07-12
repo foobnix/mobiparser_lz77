@@ -44,7 +44,7 @@ public class MobiTest1 {
             image.close();
         }
 
-        FileOutputStream image = new FileOutputStream(new File(OUT + "cover.jpg"));
+        FileOutputStream image = new FileOutputStream(new File(OUT, "cover.jpg"));
         if (mobi.getCoverOrThumb() != null) {
             image.write(mobi.getCoverOrThumb());
             image.flush();
