@@ -1,6 +1,8 @@
 package com.foobnix.mobi.parser;
 
 import java.io.ByteArrayOutputStream;
+import java.io.File;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.util.ArrayList;
@@ -67,11 +69,36 @@ public class MobiParser {
         return byteArrayToInt(range);
     }
 
+    public static int toInt(byte bytes[], int pos) {
+        if (bytes.length < 10) {
+            return -1;
+        }
+        return (bytes[bytes.length - pos] & 0xff);
+    }
+
     public static byte[] lz77(byte[] bytes) {
         ByteArrayBuffer outputStream = new ByteArrayBuffer(bytes.length);
+        // ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+
+        // int less = 0;
+        // if (toInt(bytes, 3) == 0x82 && toInt(bytes, 2) == 0x80 &&
+        // toInt(bytes, 1) == 0x83) {
+        // less = 6;
+        // } else if (toInt(bytes, 4) == 0x00 && toInt(bytes, 3) == 0x82 &&
+        // toInt(bytes, 2) == 0x80 && toInt(bytes, 1) == 0x83) {
+        // less = 4;
+        // } else if (toInt(bytes, 3) == 0x80 && toInt(bytes, 2) == 0x80 &&
+        // toInt(bytes, 1) == 0x84) {
+        // less = 6;
+        // } else if (toInt(bytes, 4) == 0x83 && toInt(bytes, 3) == 0x80 &&
+        // toInt(bytes, 2) == 0x80 && toInt(bytes, 1) == 0x84) {
+        // less = 6;
+        // } else if (toInt(bytes, 2) == 0x02 && toInt(bytes, 1) == 0x84) {
+        // less = 6;
+        // }
 
         int i = 0;
-        while (i < bytes.length - 4) {// try 2,4,8,10
+        while (i < bytes.length - 6) {// try 2,4,8,10
             int b = bytes[i++] & 0x00FF;
             try {
                 if (b == 0x0) {
@@ -124,7 +151,8 @@ public class MobiParser {
         recordsCount = asInt(raw, 76, 2);
         for (int i = 78; i < 78 + recordsCount * 8; i += 8) {
             int recordOffset = byteArrayToInt(Arrays.copyOfRange(raw, i, i + 4));
-            int recordID = byteArrayToInt(Arrays.copyOfRange(raw, i + 5, i + 5 + 3));
+            // int recordID = byteArrayToInt(Arrays.copyOfRange(raw, i + 5, i +
+            // 5 + 3));
             recordsOffset.add(recordOffset);
         }
         int mobiOffset = recordsOffset.get(0);
@@ -157,13 +185,63 @@ public class MobiParser {
                 if (decoded[n] != 0x00) {
                     outputStream.write(decoded[n]);
                 }
+
             }
+
+            if (false && coded.length > 10) {
+                outputStream.write('[');
+                try {
+                    outputStream.write(toChar(coded[coded.length - 4]));
+                    outputStream.write(toChar(coded[coded.length - 3]));
+                    outputStream.write(toChar(coded[coded.length - 2]));
+                    outputStream.write(toChar(coded[coded.length - 1]));
+                } catch (IOException e1) {
+                }
+                outputStream.write(']');
+            }
+
+            if (i < 4)
+                try {
+                    String OUT = "/home/ivan-dev/git/mobilz77/MobiParserLZ77/output";
+                    FileOutputStream image = new FileOutputStream(new File(OUT, i + "___.txt"));
+                    image.write(decoded);
+                    image.flush();
+                    image.close();
+
+                    image = new FileOutputStream(new File(OUT, i + "_lz.txt"));
+                    image.write(coded);
+                    image.flush();
+                    image.close();
+
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
         }
         try {
             return outputStream.toString(encoding);
         } catch (UnsupportedEncodingException e) {
             return outputStream.toString();
         }
+    }
+
+    public byte[] toChar(byte b) {
+        if ((b & 0xff) == 0x84) {
+            return "84,".getBytes();
+        }
+        if ((b & 0xff) == 0x80) {
+            return "80,".getBytes();
+        }
+        if ((b & 0xff) == 0x83) {
+            return "83,".getBytes();
+        }
+        if ((b & 0xff) == 0x82) {
+            return "82,".getBytes();
+        }
+        if ((b & 0xff) == 0x00) {
+            return "00,".getBytes();
+        }
+
+        return "?".getBytes();
     }
 
     public String getTitle() {

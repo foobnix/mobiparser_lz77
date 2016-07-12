@@ -13,11 +13,13 @@ import com.foobnix.mobi.parser.MobiParser;
 public class MobiTest1 {
     public static void main(String[] args) throws IOException {
 
-        String OUT = "/home/ivan-dev/dev/workspace/pdf4/MobiParserLZ77/output";
+        String OUT = "/home/ivan-dev/git/mobilz77/MobiParserLZ77/output";
 
         // String input =
-        // "/home/ivan-dev/dev/workspace/pdf4/MobiParserLZ77/input/Вожак.mobi";
-        String input = "/home/ivan-dev/dev/workspace/pdf4/MobiParserLZ77/input/Abe.mobi";
+        // "/home/ivan-dev/git/mobilz77/MobiParserLZ77/input/Вожак.mobi";
+        // String input =
+        // "/home/ivan-dev/git/mobilz77/MobiParserLZ77/input/Abe.mobi";
+        String input = "/home/ivan-dev/dev/workspace/pdf4/ZTestProject/input/Aleksandrova_Domovyonok-Kuzka.297647.fb2.mobi";
 
         byte[] raw = IOUtils.toByteArray(new FileInputStream(new File(input)));
         MobiParser mobi = new MobiParser(raw);
@@ -52,5 +54,6 @@ public class MobiTest1 {
         }
 
     }
+
 
 }
