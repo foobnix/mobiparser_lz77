@@ -9,11 +9,10 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-
 public class MobiParser {
     public String name;
     public int recordsCount;
-    List<Integer> recordsOffset = new ArrayList<>();
+    List<Integer> recordsOffset = new ArrayList<Integer>();
     public int mobiType;
     public String encoding;
     public String fullName;
@@ -28,7 +27,7 @@ public class MobiParser {
         public String identifier;
         public int len;
         public int count;
-        public Map<Integer, byte[]> headers = new HashMap<>();
+        public Map<Integer, byte[]> headers = new HashMap<Integer, byte[]>();
 
         public EXTH parse(byte[] raw) {
             int offset = indexOf(raw, "EXTH".getBytes());
