@@ -1,8 +1,6 @@
 package com.foobnix.mobi.parser;
 
 import java.io.ByteArrayOutputStream;
-import java.io.File;
-import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.util.ArrayList;
@@ -12,7 +10,12 @@ import java.util.List;
 import java.util.Map;
 
 public class MobiParser {
+    public static int COMPRESSION_NONE = 0;
+    public static int COMPRESSION_PalmDOC = 2;
+    public static int COMPRESSION_HUFF = 17480;
+
     public String name;
+
     public int recordsCount;
     List<Integer> recordsOffset = new ArrayList<Integer>();
     public int mobiType;
@@ -23,6 +26,8 @@ public class MobiParser {
     public int lastContentIndex;
     public EXTH exth = new EXTH();
     private int firstContentIndex;
+
+    private int commpression;
 
     // http://wiki.mobileread.com/wiki/MOBI#MOBI_Header
     class EXTH {
@@ -78,27 +83,8 @@ public class MobiParser {
 
     public static byte[] lz77(byte[] bytes) {
         ByteArrayBuffer outputStream = new ByteArrayBuffer(bytes.length);
-        // ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
-
-        // int less = 0;
-        // if (toInt(bytes, 3) == 0x82 && toInt(bytes, 2) == 0x80 &&
-        // toInt(bytes, 1) == 0x83) {
-        // less = 6;
-        // } else if (toInt(bytes, 4) == 0x00 && toInt(bytes, 3) == 0x82 &&
-        // toInt(bytes, 2) == 0x80 && toInt(bytes, 1) == 0x83) {
-        // less = 4;
-        // } else if (toInt(bytes, 3) == 0x80 && toInt(bytes, 2) == 0x80 &&
-        // toInt(bytes, 1) == 0x84) {
-        // less = 6;
-        // } else if (toInt(bytes, 4) == 0x83 && toInt(bytes, 3) == 0x80 &&
-        // toInt(bytes, 2) == 0x80 && toInt(bytes, 1) == 0x84) {
-        // less = 6;
-        // } else if (toInt(bytes, 2) == 0x02 && toInt(bytes, 1) == 0x84) {
-        // less = 6;
-        // }
-
         int i = 0;
-        while (i < bytes.length - 6) {// try 2,4,8,10
+        while (i < bytes.length - 4) {// try -2,4,8,10
             int b = bytes[i++] & 0x00FF;
             try {
                 if (b == 0x0) {
@@ -148,7 +134,9 @@ public class MobiParser {
         raw = file;
 
         name = asString(raw, 0, 32);
+
         recordsCount = asInt(raw, 76, 2);
+
         for (int i = 78; i < 78 + recordsCount * 8; i += 8) {
             int recordOffset = byteArrayToInt(Arrays.copyOfRange(raw, i, i + 4));
             // int recordID = byteArrayToInt(Arrays.copyOfRange(raw, i + 5, i +
@@ -157,12 +145,22 @@ public class MobiParser {
         }
         int mobiOffset = recordsOffset.get(0);
 
+        commpression = asInt(raw, mobiOffset, 2);
+
         mobiType = asInt(raw, mobiOffset + 24, 4);
         encoding = asInt(raw, mobiOffset + 28, 4) == 1252 ? "cp1251" : "UTF-8";
 
         int fullNameOffset = asInt(raw, mobiOffset + 84, 4);
         int fullNameLen = asInt(raw, mobiOffset + 88, 4);
         fullName = asString(raw, mobiOffset + fullNameOffset, fullNameLen);
+
+        // int huffmanRecord = asInt(raw, mobiOffset + 112, 4);
+        // int huffmanCount = asInt(raw, mobiOffset + 116, 4);
+        // int huffmanOffset = asInt(raw, mobiOffset + 120, 4);
+        // int huffmanLen = asInt(raw, mobiOffset + 124, 4);
+        // byte[] huffman = Arrays.copyOfRange(raw, mobiOffset + huffmanOffset,
+        // mobiOffset + huffmanOffset + huffmanLen);
+
 
         firstImageIndex = asInt(raw, mobiOffset + 108, 4);
         boolean isEXTHFlag = (asInt(raw, mobiOffset + 128, 4) & 0x40) != 0;
@@ -174,48 +172,45 @@ public class MobiParser {
         }
     }
 
+    byte[] INDX = "INDX".getBytes();
+
     public String getTextContent() {
         ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+        if (firstContentIndex == 0) {
+            firstContentIndex = 1;
+        }
         for (int i = firstContentIndex; i < lastContentIndex - 1 && i < firstImageIndex; i++) {
             int start = recordsOffset.get(i);
             int end = recordsOffset.get(i + 1);
             byte[] coded = Arrays.copyOfRange(raw, start, end);
-            byte[] decoded = lz77(coded);
+
+            byte[] decoded = null;
+            if (commpression == COMPRESSION_PalmDOC) {
+                decoded = lz77(coded);
+            } else if (commpression == COMPRESSION_NONE) {
+                decoded = coded;
+            } else if (commpression == COMPRESSION_HUFF) {
+                try {
+                    decoded = coded;
+                } catch (Exception e) {
+                    e.printStackTrace();
+                    decoded = ("error").getBytes();
+                }
+            } else {
+                decoded = ("Compression not supported " + commpression).getBytes();
+            }
+
+            byte[] header = Arrays.copyOfRange(decoded, 0, 4);
+            if (Arrays.equals(INDX, header)) {
+                continue;
+            }
+
             for (int n = 0; n < decoded.length; n++) {
                 if (decoded[n] != 0x00) {
                     outputStream.write(decoded[n]);
                 }
 
             }
-
-            if (false && coded.length > 10) {
-                outputStream.write('[');
-                try {
-                    outputStream.write(toChar(coded[coded.length - 4]));
-                    outputStream.write(toChar(coded[coded.length - 3]));
-                    outputStream.write(toChar(coded[coded.length - 2]));
-                    outputStream.write(toChar(coded[coded.length - 1]));
-                } catch (IOException e1) {
-                }
-                outputStream.write(']');
-            }
-
-            if (i < 4)
-                try {
-                    String OUT = "/home/ivan-dev/git/mobilz77/MobiParserLZ77/output";
-                    FileOutputStream image = new FileOutputStream(new File(OUT, i + "___.txt"));
-                    image.write(decoded);
-                    image.flush();
-                    image.close();
-
-                    image = new FileOutputStream(new File(OUT, i + "_lz.txt"));
-                    image.write(coded);
-                    image.flush();
-                    image.close();
-
-                } catch (Exception e) {
-                    e.printStackTrace();
-                }
         }
         try {
             return outputStream.toString(encoding);
@@ -224,24 +219,32 @@ public class MobiParser {
         }
     }
 
-    public byte[] toChar(byte b) {
-        if ((b & 0xff) == 0x84) {
-            return "84,".getBytes();
-        }
-        if ((b & 0xff) == 0x80) {
-            return "80,".getBytes();
-        }
-        if ((b & 0xff) == 0x83) {
-            return "83,".getBytes();
-        }
-        if ((b & 0xff) == 0x82) {
-            return "82,".getBytes();
-        }
-        if ((b & 0xff) == 0x00) {
-            return "00,".getBytes();
+    public static String byteArrayToString(byte[] buffer, String encoding) {
+        int len = buffer.length;
+        int zeroIndex = -1;
+        for (int i = 0; i < len; i++) {
+            byte b = buffer[i];
+            if (b == 0) {
+                zeroIndex = i;
+                break;
+            }
         }
 
-        return "?".getBytes();
+        if (encoding != null) {
+            try {
+                if (zeroIndex == -1)
+                    return new String(buffer, encoding);
+                else
+                    return new String(buffer, 0, zeroIndex, encoding);
+            } catch (java.io.UnsupportedEncodingException e) {
+                // let it fall through and use the default encoding
+            }
+        }
+
+        if (zeroIndex == -1)
+            return new String(buffer);
+        else
+            return new String(buffer, 0, zeroIndex);
     }
 
     public String getTitle() {
