@@ -13,12 +13,11 @@ import com.foobnix.mobi.parser.MobiParser;
 
 public class MobiTest1 {
 
-
     public static void main(String[] args) throws IOException {
 
         String OUT = "/home/ivan-dev/git/mobilz77/MobiParserLZ77/output";
 
-        String input = "/home/ivan-dev/git/mobilz77/MobiParserLZ77/input/Вожак.mobi";
+        String input = "/home/ivan-dev/git/mobilz77/MobiParserLZ77/input/Стивен Кинг - Зелёная миля (rus).mobi";
 
         byte[] raw = IOUtils.toByteArray(new FileInputStream(new File(input)));
         MobiParser mobi = new MobiParser(raw);
@@ -29,6 +28,14 @@ public class MobiTest1 {
         for (File item : new File(OUT).listFiles()) {
             item.delete();
         }
+
+        FileOutputStream image = new FileOutputStream(new File(OUT, "cover.jpg"));
+        if (mobi.getCoverOrThumb() != null) {
+            image.write(mobi.getCoverOrThumb());
+            image.flush();
+            image.close();
+        }
+
         FileWriter out = new FileWriter(new File(OUT, "0_BOOK1.html"));
         String text = mobi.getTextContent().replace("<head>", "<head><meta charset='utf-8'>");
         text = text.replaceAll("recindex=\"([0]*)([0-9]+)\"", "src=\"$2.jpg\"");
@@ -43,17 +50,12 @@ public class MobiTest1 {
             j++;
 
             byte[] data = mobi.getRecordByIndex(i);
-            FileOutputStream image = new FileOutputStream(new File(OUT, Integer.toHexString(j).toUpperCase() + "." + getDataExt(data)));
-            image.write(data);
-            image.flush();
-            image.close();
-        }
-
-        FileOutputStream image = new FileOutputStream(new File(OUT, "cover.jpg"));
-        if (mobi.getCoverOrThumb() != null) {
-            image.write(mobi.getCoverOrThumb());
-            image.flush();
-            image.close();
+            image = new FileOutputStream(new File(OUT, Integer.toHexString(j).toUpperCase() + "." + getDataExt(data)));
+            if (data != null) {
+                image.write(data);
+                image.flush();
+                image.close();
+            }
         }
 
     }
@@ -63,6 +65,9 @@ public class MobiTest1 {
     private final static byte[] GIF = new byte[] { (byte) 0x47, (byte) 0x49 };
 
     public static String getDataExt(byte[] input) {
+        if (input == null) {
+            return "null";
+        }
         byte[] in = Arrays.copyOf(input, 2);
         if (Arrays.equals(JPEG, in)) {
             return "jpeg";

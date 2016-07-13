@@ -161,7 +161,6 @@ public class MobiParser {
         // byte[] huffman = Arrays.copyOfRange(raw, mobiOffset + huffmanOffset,
         // mobiOffset + huffmanOffset + huffmanLen);
 
-
         firstImageIndex = asInt(raw, mobiOffset + 108, 4);
         boolean isEXTHFlag = (asInt(raw, mobiOffset + 128, 4) & 0x40) != 0;
         firstContentIndex = asInt(raw, mobiOffset + 192, 2);
@@ -276,7 +275,17 @@ public class MobiParser {
     }
 
     public byte[] getRecordByIndex(int index) {
-        return Arrays.copyOfRange(raw, recordsOffset.get(index), recordsOffset.get(index + 1));
+        if (index >= recordsOffset.size()) {
+            return null;
+        }
+
+        Integer from = recordsOffset.get(index);
+        Integer to = raw.length;
+        if (index + 1 < recordsOffset.size()) {
+            to = recordsOffset.get(index + 1);
+        }
+
+        return Arrays.copyOfRange(raw, from, to);
     }
 
 }
